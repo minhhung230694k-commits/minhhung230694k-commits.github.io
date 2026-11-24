@@ -1,0 +1,499 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Phòng thí nghiệm KHTN 3D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Lexend:wght@600;700&family=JetBrains+Mono:wght@600&display=swap">
+<style>
+/* Layout: cảnh 3D phủ toàn màn hình; HUD nổi: nhiệm vụ (trên trái), nút (trên phải), thông báo (dưới giữa), cần điều khiển (dưới trái, cảm ứng), ngăn kéo phiếu ghi (phải). Một giao diện cố định, không đổi theo theme. */
+:root{
+  --hud:rgba(16,26,33,.82); --hud-line:rgba(255,255,255,.14); --hud-ink:#eef4f7; --hud-muted:#a9bbc6;
+  --accent:#5fc0de; --good:#6fd39a; --warn:#f3b65a; --bad:#ff8a80;
+  --paper:#f7fafb; --paper-ink:#15212a; --paper-muted:#5a6b77; --paper-line:#d5dee4; --paper-soft:#eaf1f4;
+  --f-head:"Lexend","Be Vietnam Pro",system-ui,sans-serif; --f-body:"Be Vietnam Pro",system-ui,"Segoe UI",sans-serif; --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:#0d1419;color:var(--hud-ink);font-family:var(--f-body);font-size:14px;overflow:hidden;
+  padding-left:max(0px,env(safe-area-inset-left,0px));padding-right:max(0px,env(safe-area-inset-right,0px));padding-block:0}
+#view{position:fixed;inset:0;touch-action:none}
+#view canvas{display:block;width:100%;height:100%;cursor:grab}
+#view canvas.pointing{cursor:pointer}
+.hud{position:fixed;z-index:5;background:var(--hud);border:1px solid var(--hud-line);border-radius:12px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+#mission{top:calc(12px + env(safe-area-inset-top,0px));left:calc(12px + env(safe-area-inset-left,0px));padding:10px 12px;max-width:min(300px,calc(100vw - 24px))}
+#mission h1{font-family:var(--f-head);font-size:.95rem;margin:0 0 6px}
+#mission ul{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:.8rem;color:var(--hud-muted)}
+#mission li::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;border:1.5px solid var(--hud-muted);margin-right:7px;vertical-align:-1px}
+#mission li.done{color:var(--hud-ink)}
+#mission li.done::before{background:var(--good);border-color:var(--good)}
+#mission .held{margin-top:8px;font-size:.8rem;color:var(--accent);font-weight:600}
+#tools{top:calc(12px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;max-width:60vw;position:fixed;z-index:5}
+button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--hud-line);background:var(--hud);color:var(--hud-ink);padding:8px 12px;font-weight:500;backdrop-filter:blur(6px)}
+button:hover{border-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#08161c;font-weight:700}
+#msg{left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));padding:10px 16px;max-width:min(620px,calc(100vw - 24px));text-align:center;font-size:.9rem;line-height:1.45}
+#msg.warn{border-color:var(--warn)}
+#msg.ok{border-color:var(--good)}
+#msg b{color:var(--accent)}
+#tip{position:fixed;z-index:6;pointer-events:none;padding:5px 9px;font-size:.78rem;border-radius:8px;background:var(--hud);border:1px solid var(--hud-line);white-space:nowrap}
+#cross{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:rgba(255,255,255,.7);z-index:4;pointer-events:none}
+#joy{position:fixed;z-index:5;left:calc(20px + env(safe-area-inset-left,0px));bottom:calc(84px + env(safe-area-inset-bottom,0px));width:120px;height:120px;border-radius:50%;background:rgba(16,26,33,.45);border:1px solid var(--hud-line);touch-action:none}
+#joy i{position:absolute;left:50%;top:50%;width:50px;height:50px;margin:-25px 0 0 -25px;border-radius:50%;background:rgba(95,192,222,.75)}
+/* màn hình bắt đầu */
+#intro{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:rgba(8,14,18,.72);padding:16px}
+#intro .card{background:var(--paper);color:var(--paper-ink);border-radius:16px;padding:22px;max-width:520px;width:100%;display:grid;gap:12px}
+#intro h2{font-family:var(--f-head);margin:0;font-size:1.35rem;text-wrap:balance}
+#intro .eyebrow{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:#1d6a86;font-weight:700}
+#intro p{margin:0;color:var(--paper-muted);line-height:1.5}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:.88rem;align-items:center}
+kbd{font-family:var(--f-mono);font-size:.75rem;background:var(--paper-soft);border:1px solid var(--paper-line);border-bottom-width:2px;border-radius:5px;padding:1px 6px;color:var(--paper-ink)}
+/* phiếu ghi */
+#sheet{position:fixed;z-index:10;top:0;right:0;bottom:0;width:min(470px,100vw);background:var(--paper);color:var(--paper-ink);box-shadow:-10px 0 30px rgba(0,0,0,.35);
+  padding:calc(16px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) 16px;overflow-y:auto;display:grid;gap:14px;align-content:start}
+#sheet h2{font-family:var(--f-head);margin:0;font-size:1.1rem}
+#sheet .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+#sheet button{background:var(--paper-soft);color:var(--paper-ink);border-color:var(--paper-line);backdrop-filter:none}
+#sheet button.primary{background:#1d6a86;border-color:#1d6a86;color:#fff}
+.formula{font-family:var(--f-mono);background:var(--paper-soft);border-radius:8px;padding:8px 10px;font-size:.85rem}
+.tbl{overflow-x:auto;border:1px solid var(--paper-line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:.84rem;font-variant-numeric:tabular-nums;min-width:430px}
+th,td{padding:7px 6px;border-bottom:1px solid var(--paper-line);text-align:center}
+th{background:var(--paper-soft);color:var(--paper-muted);font-size:.75rem;font-weight:600}
+tr:last-child td{border-bottom:none}
+td.metal{text-align:left;font-weight:600;white-space:nowrap}
+td.metal i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.chip{display:inline-block;font-size:.65rem;background:#fbeed8;color:#a15c00;border-radius:99px;padding:0 6px;margin-left:3px;font-weight:700}
+input[type=text],select{font:inherit;color:var(--paper-ink);background:#fff;border:1px solid var(--paper-line);border-radius:7px;padding:5px 6px}
+td input{width:58px;text-align:center}
+input.right{border-color:#2b7a4b;background:#e1f1e7}
+input.wrong{border-color:#b0281f;background:#f8e2e0}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.hint{font-size:.8rem;color:var(--paper-muted)}
+.fb{font-size:.85rem;line-height:1.5}
+.ref{font-size:.82rem;color:var(--paper-muted);line-height:1.5}
+.concl{padding:10px 12px;border-radius:10px;background:#e1f1e7;border:1px solid #2b7a4b;font-size:.88rem;line-height:1.5}
+label.sel{display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--paper-muted)}
+@media (max-width:560px){#mission{max-width:calc(100vw - 150px)}#mission ul{display:none}#tools{max-width:140px}}
+</style>
+
+<div id="view" aria-label="Phòng thí nghiệm 3D"></div>
+<div id="cross" aria-hidden="true"></div>
+<div id="tip" hidden></div>
+
+<div id="mission" class="hud">
+  <h1>Đo khối lượng riêng</h1>
+  <ul>
+    <li id="ms1">Cân 3 khối (khi khô)</li>
+    <li id="ms2">Đo thể tích 3 khối bằng ống đong</li>
+    <li id="ms3">Tính D = m / V trong phiếu ghi</li>
+  </ul>
+  <div class="held" id="held">Tay đang trống</div>
+</div>
+<div id="tools">
+  <button type="button" id="goBench">Đến bàn thí nghiệm</button>
+  <button type="button" class="primary" id="openSheet">Phiếu ghi</button>
+  <button type="button" id="helpBtn">Hướng dẫn</button>
+</div>
+<div id="msg" class="hud" role="status" aria-live="polite">Đi tới bàn ở giữa phòng. Bấm vào một khối kim loại trên khay để cầm lên.</div>
+<div id="joy" hidden aria-hidden="true"><i></i></div>
+
+<div id="intro">
+  <div class="card">
+    <div class="eyebrow">KHTN 8 · Bài 13 · Thí nghiệm ảo</div>
+    <h2>Phòng thí nghiệm khối lượng riêng</h2>
+    <p>Đi trong phòng, cầm từng khối sắt, nhôm, đồng (cùng thể tích), đặt lên cân và thả vào ống đong. Ghi số liệu rồi tính khối lượng riêng.</p>
+    <div class="keys">
+      <span><kbd>W</kbd> <kbd>S</kbd> / <kbd>↑</kbd> <kbd>↓</kbd></span><span>Đi tới, lùi lại</span>
+      <span><kbd>A</kbd> <kbd>D</kbd></span><span>Bước sang trái, phải</span>
+      <span><kbd>←</kbd> <kbd>→</kbd></span><span>Quay người</span>
+      <span>Kéo chuột / vuốt</span><span>Nhìn xung quanh</span>
+      <span>Bấm / chạm</span><span>Cầm, đặt, thả đồ vật (đứng gần bàn)</span>
+      <span>Cần tròn góc trái</span><span>Di chuyển trên điện thoại</span>
+    </div>
+    <button type="button" class="primary" id="startBtn">Vào phòng thí nghiệm</button>
+  </div>
+</div>
+
+<aside id="sheet" hidden aria-labelledby="sheet-h">
+  <div class="top"><h2 id="sheet-h">Phiếu ghi kết quả</h2><button type="button" id="closeSheet">Đóng</button></div>
+  <div class="formula">D = m / V · V = V₂ − V₁ · 1 g/cm³ = 1000 kg/m³</div>
+  <label class="sel" for="volSel">Thể tích mỗi khối
+    <select id="volSel"><option value="10">10 cm³</option><option value="20">20 cm³</option></select>
+    <button type="button" id="resetBtn">Làm lại</button>
+  </label>
+  <div class="tbl"><table>
+    <thead><tr><th style="text-align:left">Chất</th><th>m (g)</th><th>V₁ (ml)</th><th>V₂ (ml)</th><th>V (cm³)</th><th>D (g/cm³)</th><th>kg/m³</th></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table></div>
+  <div class="row"><button type="button" class="primary" id="checkBtn">Kiểm tra</button><button type="button" id="showBtn">Xem đáp án</button><span class="hint">Gõ dấu phẩy được: 7,81</span></div>
+  <div class="fb" id="feedback"></div>
+  <div class="concl" id="concl" hidden></div>
+  <div class="ref"><b>Bảng SGK:</b> nhôm 2 700 kg/m³ · sắt 7 800 kg/m³ · đồng 8 900 kg/m³ · nước 1 000 kg/m³.</div>
+</aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const fmt=(x,d)=>Number(x).toFixed(d).replace('.',',');
+const num=s=>{s=String(s||'').trim().replace(',','.');return s===''?NaN:Number(s)};
+const M={
+  fe:{name:'Sắt',rho:7.8,col:0x8a9099,css:'#7d848d'},
+  al:{name:'Nhôm',rho:2.7,col:0xdfe4ea,css:'#c4cad2'},
+  cu:{name:'Đồng',rho:8.9,col:0xd0783c,css:'#c97b45'}
+};
+const IDS=['fe','al','cu'],V1=50;
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const COARSE=matchMedia('(pointer: coarse)').matches;
+
+if(!window.THREE){$('msg').textContent='Không tải được thư viện 3D. Kiểm tra kết nối mạng rồi tải lại trang.';$('intro').hidden=true;return}
+
+/* ---------- cảnh ---------- */
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+renderer.outputEncoding=THREE.sRGBEncoding;
+$('view').appendChild(renderer.domElement);
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0xdde6ea);
+const camera=new THREE.PerspectiveCamera(68,1,0.03,60);
+camera.rotation.order='YXZ';scene.add(camera);
+scene.add(new THREE.HemisphereLight(0xffffff,0x7d8c96,0.85));
+const sun=new THREE.DirectionalLight(0xfff6e8,0.75);sun.position.set(4,6,3);scene.add(sun);
+const fill=new THREE.PointLight(0xffffff,0.45,8);fill.position.set(0,2.6,1.2);scene.add(fill);
+
+const mat=(c,o)=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.8,metalness:0},o||{}));
+function box(w,h,d,m,x,y,z,parent){const g=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),typeof m==='number'?mat(m):m);g.position.set(x,y,z);(parent||scene).add(g);return g}
+function cyl(rt,rb,h,m,x,y,z,seg,open){const g=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg||24,1,!!open),typeof m==='number'?mat(m):m);g.position.set(x,y,z);scene.add(g);return g}
+function canvasTex(w,h,draw){const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');draw(x,w,h);const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.anisotropy=4;t.userData={c,x};return t}
+function plane(w,h,m,x,y,z,ry){const p=new THREE.Mesh(new THREE.PlaneGeometry(w,h),m);p.position.set(x,y,z);p.rotation.y=ry||0;scene.add(p);return p}
+function label(text,size,opts){
+  opts=opts||{};const t=canvasTex(512,128,(x,w,h)=>{x.fillStyle=opts.bg||'rgba(255,255,255,.92)';roundRect(x,4,14,w-8,h-28,24);x.fill();
+    x.fillStyle=opts.fg||'#15212a';x.font='600 54px "Segoe UI",Arial,sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(text,w/2,h/2+2)});
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthWrite:false}));s.scale.set(size*4,size,1);s.raycast=()=>{};return s}
+function roundRect(x,a,b,w,h,r){x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w,b,a+w,b+h,r);x.arcTo(a+w,b+h,a,b+h,r);x.arcTo(a,b+h,a,b,r);x.arcTo(a,b,a+w,b,r);x.closePath()}
+
+/* phòng: x ∈ [-6,6], z ∈ [-5,5], cao 3.2 m */
+const RX=6,RZ=5,RH=3.2;
+const floorTex=canvasTex(256,256,(x,w)=>{x.fillStyle='#c9d1d5';x.fillRect(0,0,w,w);x.fillStyle='#bcc5ca';x.fillRect(0,0,w/2,w/2);x.fillRect(w/2,w/2,w/2,w/2);x.strokeStyle='#aeb8be';x.lineWidth=2;x.strokeRect(0,0,w,w)});
+floorTex.wrapS=floorTex.wrapT=THREE.RepeatWrapping;floorTex.repeat.set(12,10);
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(RX*2,RZ*2),mat(0xffffff,{map:floorTex,roughness:.9}));floor.rotation.x=-Math.PI/2;scene.add(floor);
+const ceil=new THREE.Mesh(new THREE.PlaneGeometry(RX*2,RZ*2),mat(0xf3f5f6));ceil.rotation.x=Math.PI/2;ceil.position.y=RH;scene.add(ceil);
+const wallM=mat(0xe9eef0),wallLow=mat(0x5f7f8c);
+plane(RX*2,RH,wallM,0,RH/2,-RZ,0);plane(RX*2,RH,wallM,0,RH/2,RZ,Math.PI);
+plane(RZ*2,RH,wallM,-RX,RH/2,0,Math.PI/2);plane(RZ*2,RH,wallM,RX,RH/2,0,-Math.PI/2);
+/* chân tường */
+plane(RX*2,.9,wallLow,0,.45,-RZ+.005,0);plane(RX*2,.9,wallLow,0,.45,RZ-.005,Math.PI);
+plane(RZ*2,.9,wallLow,-RX+.005,.45,0,Math.PI/2);plane(RZ*2,.9,wallLow,RX-.005,.45,0,-Math.PI/2);
+/* đèn trần */
+for(const x of[-3,0,3])for(const z of[-2.5,0,2.5]){const p=new THREE.Mesh(new THREE.PlaneGeometry(1.2,.3),new THREE.MeshBasicMaterial({color:0xffffff}));p.rotation.x=Math.PI/2;p.position.set(x,RH-.01,z);scene.add(p)}
+/* cửa sổ tường phải */
+for(const z of[-2.8,0,2.8]){box(.06,1.5,1.9,0x40525c,RX-.03,1.85,z);const g=plane(1.75,1.35,new THREE.MeshBasicMaterial({color:0xbfe1f5}),RX-.07,1.85,z,-Math.PI/2);box(.07,1.35,.04,0x40525c,RX-.06,1.85,z)}
+/* bảng đen */
+const board=canvasTex(1024,420,(x,w,h)=>{x.fillStyle='#21413a';x.fillRect(0,0,w,h);x.strokeStyle='#8a6b47';x.lineWidth=18;x.strokeRect(0,0,w,h);
+  x.fillStyle='#f2f5ef';x.font='600 46px "Segoe UI",Arial';x.fillText('Bài 13. Khối lượng riêng',50,90);
+  x.font='500 36px "Segoe UI",Arial';x.fillText('Thí nghiệm: xác định khối lượng riêng của',50,160);x.fillText('sắt, nhôm, đồng có cùng thể tích',50,205);
+  x.fillStyle='#ffe58a';x.font='700 64px "Segoe UI",Arial';x.fillText('D = m / V',50,300);
+  x.fillStyle='#cfe6ff';x.font='500 34px "Segoe UI",Arial';x.fillText('V = V₂ − V₁     1 g/cm³ = 1000 kg/m³',50,370)});
+plane(4.2,1.72,mat(0xffffff,{map:board,roughness:.95}),0,1.75,-RZ+.02,0);
+/* áp phích bảng khối lượng riêng (tường trái) */
+const poster=canvasTex(512,640,(x,w,h)=>{x.fillStyle='#ffffff';x.fillRect(0,0,w,h);x.fillStyle='#1d6a86';x.fillRect(0,0,w,96);
+  x.fillStyle='#fff';x.font='700 38px "Segoe UI",Arial';x.fillText('Khối lượng riêng',30,62);
+  const rows=[['Chất','kg/m³'],['Nhôm','2 700'],['Sắt','7 800'],['Đồng','8 900'],['Chì','11 300'],['Nước','1 000'],['Dầu ăn','800']];
+  rows.forEach((r,i)=>{const y=160+i*66;x.fillStyle=i===0?'#5a6b77':'#15212a';x.font=(i===0?'600 30px':'500 34px')+' "Segoe UI",Arial';x.fillText(r[0],40,y);x.textAlign='right';x.fillText(r[1],w-40,y);x.textAlign='left';
+    x.strokeStyle='#d5dee4';x.lineWidth=2;x.beginPath();x.moveTo(30,y+20);x.lineTo(w-30,y+20);x.stroke()})});
+plane(1.1,1.375,mat(0xffffff,{map:poster}),-RX+.02,1.95,-1.6,Math.PI/2);
+/* nội quy */
+const rules=canvasTex(512,360,(x,w,h)=>{x.fillStyle='#fff7e0';x.fillRect(0,0,w,h);x.fillStyle='#a15c00';x.font='700 34px "Segoe UI",Arial';x.fillText('Nội quy phòng thí nghiệm',28,56);
+  x.fillStyle='#3a2a10';x.font='500 26px "Segoe UI",Arial';['Không chạy nhảy, đùa nghịch','Dùng dụng cụ đúng hướng dẫn','Lau khô vật trước khi cân','Dọn dẹp sau khi làm xong'].forEach((t,i)=>x.fillText('• '+t,28,120+i*58))});
+plane(1.0,.7,mat(0xffffff,{map:rules}),-RX+.02,1.95,1.4,Math.PI/2);
+/* cửa ra vào (tường sau) */
+box(1.0,2.1,.05,0x8a6b47,3.6,1.05,RZ-.03);cyl(.03,.03,.12,0xcfd6dc,3.25,1.0,RZ-.09);
+/* đồng hồ */
+const clock=canvasTex(256,256,(x,w)=>{x.fillStyle='#fff';x.beginPath();x.arc(128,128,120,0,7);x.fill();x.strokeStyle='#22313a';x.lineWidth=10;x.stroke();
+  x.lineWidth=4;for(let i=0;i<12;i++){const a=i*Math.PI/6;x.beginPath();x.moveTo(128+Math.sin(a)*95,128-Math.cos(a)*95);x.lineTo(128+Math.sin(a)*110,128-Math.cos(a)*110);x.stroke()}
+  x.lineWidth=8;x.beginPath();x.moveTo(128,128);x.lineTo(128+55,128-30);x.stroke();x.lineWidth=5;x.beginPath();x.moveTo(128,128);x.lineTo(128-10,128-90);x.stroke()});
+plane(.45,.45,new THREE.MeshBasicMaterial({map:clock,transparent:true}),-2.9,2.6,-RZ+.02,0);
+
+/* va chạm */
+const OBS=[];const addObs=(x,z,w,d)=>OBS.push({x0:x-w/2,x1:x+w/2,z0:z-d/2,z1:z+d/2});
+const topM=mat(0x2c3942,{roughness:.55}),cabM=mat(0xe5e9ec),handleM=mat(0x9aa6ae);
+function bench(x,z,w,d,opts){box(w,.05,d,topM,x,.875,z);box(w-.06,.82,d-.08,cabM,x,.41,z);
+  if(!(opts&&opts.noDoors)){const n=Math.max(1,Math.round(w/.6));for(let i=0;i<n;i++){const cx=x-w/2+(i+.5)*w/n;box(.12,.02,.02,handleM,cx,.7,z+d/2-.03)}}
+  addObs(x,z,w,d)}
+function stool(x,z){cyl(.17,.17,.04,0x1d6a86,x,.62,z);cyl(.025,.025,.6,0x9aa6ae,x,.3,z);cyl(.18,.18,.02,0x9aa6ae,x,.01,z)}
+/* bàn chính */
+bench(0,0,2.6,1.0);
+/* bàn học sinh khác */
+bench(-3.2,-.6,2.0,.9);bench(3.2,-.6,2.0,.9);bench(-3.2,2.2,2.0,.9);bench(3.2,2.2,2.0,.9);
+for(const [x,z] of [[-3.7,.1],[-2.7,.1],[2.7,.1],[3.7,.1],[-3.7,2.9],[-2.7,2.9],[2.7,2.9],[3.7,2.9],[-.6,.75],[.6,.75]])stool(x,z);
+/* bàn giáo viên */
+box(1.8,.05,.8,mat(0x8a6b47,{roughness:.6}),0,.775,-3.7);box(1.7,.73,.7,mat(0x6e5538),0,.38,-3.7);addObs(0,-3.7,1.8,.8);
+/* tủ hóa chất tường trái */
+box(.5,2.0,2.2,mat(0xdfe4e8),-RX+.25,1.0,-3.6);addObs(-RX+.25,-3.6,.5,2.2);
+for(let i=0;i<3;i++)box(.02,.02,2.0,handleM,-RX+.51,.5+i*.6,-3.6);
+/* kệ dài tường trái + bồn rửa */
+bench(-RX+.45,1.4,.9,3.6,{noDoors:true});
+box(.5,.05,.6,mat(0xb8c2c8,{metalness:.5,roughness:.3}),-RX+.45,.9,2.6);cyl(.015,.015,.3,0xb8c2c8,-RX+.2,1.05,2.6);box(.2,.02,.02,0xb8c2c8,-RX+.3,1.2,2.6);
+/* dụng cụ trang trí */
+const glassM=new THREE.MeshStandardMaterial({color:0xddeef7,transparent:true,opacity:.28,roughness:.05,metalness:0,side:THREE.DoubleSide,depthWrite:false});
+function beaker(x,z,r,h,liq,lv){cyl(r,r,h,glassM,x,.9+h/2,z,24,true);cyl(r*.94,r*.94,h*lv,new THREE.MeshStandardMaterial({color:liq,transparent:true,opacity:.6}),x,.9+h*lv/2,z)}
+beaker(-RX+.45,.2,.05,.12,0x6fb7e8,.6);beaker(-RX+.45,.5,.04,.1,0xe8b86f,.5);beaker(-RX+.45,.9,.06,.14,0x8fd18a,.4);
+const flask=new THREE.Mesh(new THREE.ConeGeometry(.08,.16,24,1,true),glassM);flask.position.set(-RX+.45,.98,1.3);scene.add(flask);cyl(.02,.02,.08,glassM,-RX+.45,1.1,1.3,16,true);
+box(.25,.02,.1,0x8a6b47,-3.2,.91,-.6);for(let i=0;i<5;i++)cyl(.012,.012,.15,glassM,-3.3+i*.05,.98,-.6,12,true);
+beaker(3.0,-.5,.05,.12,0x6fb7e8,.5);beaker(-3.0,2.1,.05,.12,0xe8b86f,.4);beaker(3.4,2.3,.06,.12,0x6fb7e8,.55);
+/* kính hiển vi đơn giản */
+box(.14,.03,.18,0x22313a,3.5,.915,-.6);cyl(.02,.02,.22,0x22313a,3.5,1.04,-.66);cyl(.025,.02,.1,0x3d4b57,3.5,1.12,-.58);
+
+/* ---------- dụng cụ đo trên bàn chính ---------- */
+const TOP=.9;
+const ACT={};const INTER=[];
+function reg(mesh,act){mesh.userData.act=act;(ACT[act]=ACT[act]||[]).push(mesh);INTER.push(mesh);if(mesh.material&&mesh.material.emissive)mesh.material=mesh.material.clone();return mesh}
+const ANCHOR={tray:new THREE.Vector3(-.7,TOP,.1),scale:new THREE.Vector3(0,TOP,0),cyl:new THREE.Vector3(.62,TOP,0),towel:new THREE.Vector3(1.05,TOP,.22)};
+
+/* khay */
+reg(box(.6,.02,.22,mat(0xcfd6dc,{roughness:.5}),-.7,TOP+.01,.1),'tray');
+const trayLbl=label('Khay mẫu',.05);trayLbl.position.set(-.7,TOP+.2,.1);scene.add(trayLbl);
+
+/* cân */
+reg(box(.28,.07,.3,mat(0x2b3640,{roughness:.5}),0,TOP+.035,0),'scale');
+reg(cyl(.012,.012,.02,0x9aa6ae,0,TOP+.08,0),'scale');
+const pan=reg(cyl(.11,.11,.01,mat(0xd3dade,{metalness:.6,roughness:.3}),0,TOP+.093,0,40),'scale');
+const lcdTex=canvasTex(256,96,()=>{});
+function drawLCD(v){const {x}=lcdTex.userData;x.fillStyle='#b9cabf';x.fillRect(0,0,256,96);x.fillStyle='#16221b';x.font='700 62px Consolas,"Courier New",monospace';x.textAlign='right';x.fillText(v,214,72);x.font='600 28px Arial';x.textAlign='left';x.fillText('g',222,72);lcdTex.needsUpdate=true}
+drawLCD('0.0');
+const lcd=new THREE.Mesh(new THREE.PlaneGeometry(.15,.056),new THREE.MeshBasicMaterial({map:lcdTex}));lcd.position.set(0,TOP+.04,.151);scene.add(lcd);
+const scaleLbl=label('Cân điện tử',.05);scaleLbl.position.set(0,TOP+.3,0);scene.add(scaleLbl);
+
+/* ống đong */
+const CX=ANCHOR.cyl.x,CZ=ANCHOR.cyl.z,R=.042,Y0=TOP+.016,K=.0025;
+reg(cyl(.07,.075,.016,mat(0xa9c4d2,{transparent:true,opacity:.7}),CX,TOP+.008,CZ,32),'cyl');
+const tube=reg(cyl(R,R,.3,glassM.clone(),CX,Y0+.15,CZ,32,true),'cyl');
+tube.material.side=THREE.DoubleSide;
+const water=new THREE.Mesh(new THREE.CylinderGeometry(R*.96,R*.96,1,32),new THREE.MeshStandardMaterial({color:0x4d9fd8,transparent:true,opacity:.45,roughness:.1}));
+water.position.set(CX,0,CZ);scene.add(water);water.renderOrder=1;tube.renderOrder=2;
+const surf=new THREE.Mesh(new THREE.TorusGeometry(R*.96,.0015,6,40),new THREE.MeshBasicMaterial({color:0x1f6fb0}));surf.rotation.x=Math.PI/2;surf.position.set(CX,0,CZ);scene.add(surf);
+let level=V1;
+function setWater(v){level=v;const h=v*K;water.scale.y=h;water.position.y=Y0+h/2;surf.position.y=Y0+h}
+setWater(V1);
+const tickM=new THREE.MeshBasicMaterial({color:0x22313a});
+for(let v=0;v<=100;v+=5){const big=v%10===0;const t=new THREE.Mesh(new THREE.BoxGeometry(big?.022:.012,.0012,.001),tickM);t.position.set(CX-R*.35,Y0+v*K,CZ+R+.001);scene.add(t);
+  if(v%20===0&&v>0){const l=label(String(v),.014,{bg:'rgba(255,255,255,0)'});l.position.set(CX-R-.025,Y0+v*K,CZ+R*.6);scene.add(l)}}
+const mlLbl=label('ml',.014,{bg:'rgba(255,255,255,0)'});mlLbl.position.set(CX-R-.025,Y0+.27,CZ+R*.6);scene.add(mlLbl);
+const cylLbl=label('Ống đong 100 ml',.05);cylLbl.position.set(CX,TOP+.42,CZ);scene.add(cylLbl);
+/* nhãn đọc mực nước */
+let readLbl=null;
+function showReading(v){if(readLbl){scene.remove(readLbl)}readLbl=label(v+' ml',.03,{bg:'rgba(29,106,134,.95)',fg:'#ffffff'});readLbl.position.set(CX+R+.08,Y0+v*K,CZ);scene.add(readLbl)}
+function hideReading(){if(readLbl){scene.remove(readLbl);readLbl=null}}
+
+/* khăn lau */
+reg(box(.2,.012,.14,mat(0x6fa8dc,{roughness:1}),ANCHOR.towel.x,TOP+.006,ANCHOR.towel.z),'towel');
+const towelLbl=label('Khăn lau',.04);towelLbl.position.set(ANCHOR.towel.x,TOP+.14,ANCHOR.towel.z);scene.add(towelLbl);
+
+/* các khối kim loại */
+const TRAYPOS={fe:-.88,al:-.7,cu:-.52};
+const cubes={};
+IDS.forEach(id=>{
+  const m=reg(new THREE.Mesh(new THREE.BoxGeometry(1,1,1),mat(M[id].col,{metalness:.55,roughness:.32})),'cube:'+id);
+  const l=label(M[id].name,.03);l.position.set(0,1.1,0);m.add(l);m.userData.lbl=l;
+  scene.add(m);cubes[id]=m;
+});
+
+/* ---------- trạng thái ---------- */
+let S;
+function fresh(){
+  const vol=+$('volSel').value,noise={};IDS.forEach(id=>noise[id]=(Math.floor(Math.random()*5)-2)/10);
+  S={vol,size:vol===10?.042:.053,held:null,scale:null,cyl:null,wet:{},noise,rec:{fe:{},al:{},cu:{}},ok:{},loc:{fe:'tray',al:'tray',cu:'tray'}};
+}
+const massOf=id=>Math.round((M[id].rho*S.vol+S.noise[id])*10)/10;
+function placeCube(id,loc){
+  const m=cubes[id];S.loc[id]=loc;m.scale.setScalar(S.size);
+  const lblScale=1/S.size;m.userData.lbl.scale.set(.12*lblScale,.03*lblScale,1);m.userData.lbl.position.y=.5+.06/S.size;
+  m.userData.lbl.visible=loc==='tray';
+  if(loc==='hand'){camera.add(m);m.position.set(.16,-.15,-.38);m.rotation.set(.3,.5,0);return}
+  scene.add(m);m.rotation.set(0,0,0);
+  if(loc==='tray')m.position.set(TRAYPOS[id],TOP+.02+S.size/2,.1);
+  if(loc==='scale')m.position.set(0,TOP+.098+S.size/2,0);
+  if(loc==='cyl')m.position.set(CX,Y0+S.size/2,CZ);
+}
+function refreshHeld(){const h=$('held');h.textContent=S.held?`Đang cầm: khối ${M[S.held].name.toLowerCase()}${S.wet[S.held]?' (còn ướt)':''}`:'Tay đang trống'}
+
+/* ---------- di chuyển ---------- */
+const P={x:0,z:3.6,yaw:0,pitch:-.22};const EYE=1.55,PR=.32;
+const keys={};
+addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('input,select,textarea'))return;keys[e.code]=true;if(e.code.startsWith('Arrow'))e.preventDefault()});
+addEventListener('keyup',e=>{keys[e.code]=false});
+addEventListener('blur',()=>{for(const k in keys)keys[k]=false});
+function blocked(x,z){if(x<-RX+PR||x>RX-PR||z<-RZ+PR||z>RZ-PR)return true;
+  for(const o of OBS)if(x>o.x0-PR&&x<o.x1+PR&&z>o.z0-PR&&z<o.z1+PR)return true;return false}
+function moveBy(dx,dz){if(!blocked(P.x+dx,P.z))P.x+=dx;if(!blocked(P.x,P.z+dz))P.z+=dz}
+const joy={x:0,y:0};
+
+/* cần điều khiển */
+if(COARSE){$('joy').hidden=false}
+(function(){const j=$('joy'),knob=j.querySelector('i');let id=null;
+  const upd=e=>{const r=j.getBoundingClientRect();let dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2);const L=Math.hypot(dx,dy),max=r.width/2-10;if(L>max){dx*=max/L;dy*=max/L}
+    knob.style.transform=`translate(${dx}px,${dy}px)`;joy.x=dx/max;joy.y=dy/max};
+  j.addEventListener('pointerdown',e=>{id=e.pointerId;j.setPointerCapture(id);upd(e);e.preventDefault()});
+  j.addEventListener('pointermove',e=>{if(e.pointerId===id)upd(e)});
+  const end=e=>{if(e.pointerId!==id)return;id=null;joy.x=joy.y=0;knob.style.transform=''};
+  j.addEventListener('pointerup',end);j.addEventListener('pointercancel',end);})();
+
+/* nhìn + bấm */
+const cvs=renderer.domElement,ray=new THREE.Raycaster(),ndc=new THREE.Vector2();
+const drags={};
+cvs.addEventListener('pointerdown',e=>{drags[e.pointerId]={x:e.clientX,y:e.clientY,sx:e.clientX,sy:e.clientY,t:performance.now()};cvs.setPointerCapture(e.pointerId)});
+cvs.addEventListener('pointermove',e=>{
+  const d=drags[e.pointerId];
+  if(d){const f=e.pointerType==='touch'?.006:.0045;P.yaw-=(e.clientX-d.x)*f;P.pitch-=(e.clientY-d.y)*f;P.pitch=Math.max(-1.25,Math.min(1.1,P.pitch));d.x=e.clientX;d.y=e.clientY}
+  if(e.pointerType==='mouse')hoverAt(e.clientX,e.clientY);
+});
+const endDrag=e=>{const d=drags[e.pointerId];delete drags[e.pointerId];if(!d)return;
+  if(e.type==='pointerup'&&Math.hypot(e.clientX-d.sx,e.clientY-d.sy)<8&&performance.now()-d.t<500)clickAt(e.clientX,e.clientY)};
+cvs.addEventListener('pointerup',endDrag);cvs.addEventListener('pointercancel',endDrag);
+cvs.addEventListener('pointerleave',()=>{setHover(null)});
+
+function pick(cx,cy){const r=cvs.getBoundingClientRect();ndc.set((cx-r.left)/r.width*2-1,-(cy-r.top)/r.height*2+1);ray.setFromCamera(ndc,camera);
+  const list=INTER.filter(m=>!(m.userData.act.startsWith('cube:')&&S.loc[m.userData.act.slice(5)]==='hand'));
+  const hit=ray.intersectObjects(list,false)[0];return hit?hit.object.userData.act:null}
+let hovered=null;
+function setHover(act){if(act===hovered)return;
+  if(hovered&&ACT[hovered])ACT[hovered].forEach(m=>m.material.emissive&&m.material.emissive.setHex(0x000000));
+  hovered=act;if(act&&ACT[act])ACT[act].forEach(m=>m.material.emissive&&m.material.emissive.setHex(0x1b4a5c));
+  cvs.classList.toggle('pointing',!!act);if(!act)$('tip').hidden=true}
+function describe(act){
+  if(act.startsWith('cube:')){const id=act.slice(5);const l=S.loc[id];if(l==='scale')return describe('scale');if(l==='cyl')return describe('cyl');return S.held?'Tay đang cầm vật khác':`Cầm khối ${M[id].name.toLowerCase()}`}
+  if(act==='tray')return S.held?'Đặt lại vào khay':'Khay mẫu';
+  if(act==='scale')return S.held?'Đặt lên cân':S.scale?'Lấy khối khỏi cân':'Cân điện tử';
+  if(act==='cyl')return S.held?'Thả vào ống đong':S.cyl?'Lấy khối ra':'Ống đong 100 ml';
+  if(act==='towel')return S.held?'Lau khô khối đang cầm':'Khăn lau';return ''}
+function hoverAt(cx,cy){const a=pick(cx,cy);setHover(a);const t=$('tip');if(a){t.hidden=false;t.textContent=describe(a);t.style.left=(cx+14)+'px';t.style.top=(cy+14)+'px'}}
+function clickAt(cx,cy){const a=pick(cx,cy);if(a)act(a)}
+
+/* ---------- thao tác ---------- */
+function msg(t,kind){const m=$('msg');m.innerHTML=t;m.className='hud'+(kind?' '+kind:'')}
+let busy=false;const tweens=[];
+function tween(dur,fn){return new Promise(r=>{if(RM){fn(1);r();return}tweens.push({t0:performance.now(),dur,fn,r})})}
+const ease=k=>1-Math.pow(1-k,3);
+function near(anchor){return Math.hypot(P.x-anchor.x,P.z-anchor.z)<2.1}
+function act(a){
+  if(busy)return;
+  let id=null;if(a.startsWith('cube:')){id=a.slice(5);const l=S.loc[id];if(l==='scale')a='scale';else if(l==='cyl')a='cyl';else a='pickup'}
+  const anchor=a==='pickup'?ANCHOR.tray:ANCHOR[a];
+  if(anchor&&!near(anchor)){msg('Hãy đi lại gần bàn thí nghiệm hơn để thao tác.','warn');return}
+  if(a==='pickup'){if(S.held){msg(`Tay đang cầm khối ${M[S.held].name.toLowerCase()}. Đặt nó xuống trước đã.`,'warn');return}
+    S.held=id;placeCube(id,'hand');refreshHeld();msg(`Đã cầm khối <b>${M[id].name.toLowerCase()}</b>. Bấm vào cân hoặc ống đong.`);return}
+  if(a==='tray'){if(!S.held){msg('Bấm vào một khối kim loại trên khay để cầm lên.');return}
+    const h=S.held;S.held=null;placeCube(h,'tray');refreshHeld();msg(`Đã đặt khối ${M[h].name.toLowerCase()} lại khay.`);return}
+  if(a==='towel'){if(!S.held){msg('Cầm một khối bị ướt rồi bấm vào khăn để lau khô.');return}
+    if(!S.wet[S.held]){msg(`Khối ${M[S.held].name.toLowerCase()} đang khô, không cần lau.`);return}
+    S.wet[S.held]=false;refreshHeld();msg(`Đã lau khô khối ${M[S.held].name.toLowerCase()}. Bây giờ có thể cân lại.`,'ok');return}
+  if(a==='scale'){
+    if(S.held){if(S.scale){msg('Trên cân đang có một khối. Lấy nó xuống trước.','warn');return}const h=S.held;S.held=null;S.scale=h;placeCube(h,'scale');refreshHeld();weigh(h);return}
+    if(S.scale){const h=S.scale;S.scale=null;S.held=h;placeCube(h,'hand');drawLCD('0.0');refreshHeld();msg(`Đã lấy khối ${M[h].name.toLowerCase()} khỏi cân.`);return}
+    msg('Cầm một khối kim loại rồi bấm vào cân để đặt lên.');return}
+  if(a==='cyl'){
+    if(S.held){if(S.cyl){msg('Trong ống đong đang có một khối. Lấy nó ra trước.','warn');return}const h=S.held;S.held=null;refreshHeld();drop(h);return}
+    if(S.cyl){takeOut();return}
+    msg(`Ống đong đang chứa <b>${V1} ml</b> nước. Cầm một khối rồi bấm vào ống đong để thả vào.`);return}
+}
+async function weigh(id){
+  busy=true;const wet=!!S.wet[id];const target=Math.round((massOf(id)+(wet?.6:0))*10)/10;
+  await tween(900,k=>{const j=k<1?(Math.random()-.5)*target*.08*(1-k):0;drawLCD((target*ease(k)+j).toFixed(1))});
+  drawLCD(target.toFixed(1));S.rec[id].m=target;S.rec[id].wetM=wet;delete S.ok[id];busy=false;updateRow(id);
+  if(wet)msg(`Cân chỉ <b>${fmt(target,1)} g</b>, nhưng khối ${M[id].name.toLowerCase()} còn dính nước nên số đo lớn hơn thực tế. Lấy xuống, lau bằng khăn rồi cân lại.`,'warn');
+  else msg(`Khối lượng khối ${M[id].name.toLowerCase()}: <b>m = ${fmt(target,1)} g</b>. Đã ghi vào phiếu.`,'ok');
+}
+async function drop(id){
+  busy=true;S.cyl=id;const m=cubes[id];placeCube(id,'cyl');hideReading();
+  msg(`Mực nước ban đầu <b>V₁ = ${V1} ml</b>. Đang thả khối ${M[id].name.toLowerCase()}…`);
+  const top=TOP+.45,bottom=Y0+S.size/2,surfY=Y0+V1*K;
+  await tween(450,k=>{m.position.y=top+(surfY-top)*k*k});
+  await tween(900,k=>{const e=ease(k);m.position.y=surfY+(bottom-surfY)*e;setWater(V1+S.vol*Math.min(1,e*1.15))});
+  m.position.y=bottom;setWater(V1+S.vol);showReading(V1+S.vol);
+  S.wet[id]=true;S.rec[id].V1=V1;S.rec[id].V2=V1+S.vol;delete S.ok[id];busy=false;updateRow(id);
+  msg(`Đặt mắt ngang mực nước: <b>V₂ = ${V1+S.vol} ml</b> (lúc đầu V₁ = ${V1} ml). Đã ghi vào phiếu.`,'ok');
+}
+async function takeOut(){
+  busy=true;const id=S.cyl;hideReading();const from=level;
+  await tween(400,k=>setWater(from+(V1-from)*k));setWater(V1);
+  S.cyl=null;S.held=id;placeCube(id,'hand');refreshHeld();busy=false;
+  msg(`Đã lấy khối ${M[id].name.toLowerCase()} ra, khối còn ướt. Nếu cần cân lại thì lau bằng khăn trước.`);
+}
+
+/* ---------- phiếu ghi ---------- */
+function buildTable(){
+  $('tbody').innerHTML=IDS.map(id=>`<tr><td class="metal"><i style="background:${M[id].css}"></i>${M[id].name}</td>
+    <td id="m-${id}">—</td><td id="v1-${id}">—</td><td id="v2-${id}">—</td>
+    <td><input type="text" inputmode="decimal" id="inV-${id}" aria-label="Thể tích ${M[id].name}" placeholder="?"></td>
+    <td><input type="text" inputmode="decimal" id="inD-${id}" aria-label="Khối lượng riêng ${M[id].name}" placeholder="?"></td>
+    <td id="kg-${id}">—</td></tr>`).join('');
+}
+function updateRow(id){const r=S.rec[id];
+  $('m-'+id).innerHTML=r.m!=null?fmt(r.m,1)+(r.wetM?'<span class="chip">ướt</span>':''):'—';
+  $('v1-'+id).textContent=r.V1??'—';$('v2-'+id).textContent=r.V2??'—';
+  if(!S.ok[id]){$('kg-'+id).textContent='—';['inV-','inD-'].forEach(p=>$(p+id).classList.remove('right','wrong'))}
+  mission();
+}
+function mission(){
+  $('ms1').classList.toggle('done',IDS.every(i=>S.rec[i].m!=null&&!S.rec[i].wetM));
+  $('ms2').classList.toggle('done',IDS.every(i=>S.rec[i].V2!=null));
+  $('ms3').classList.toggle('done',IDS.every(i=>S.ok[i]));
+}
+$('checkBtn').onclick=()=>{
+  const out=[];
+  IDS.forEach(id=>{const r=S.rec[id],iV=$('inV-'+id),iD=$('inD-'+id);iV.classList.remove('right','wrong');iD.classList.remove('right','wrong');S.ok[id]=false;$('kg-'+id).textContent='—';
+    if(r.m==null||r.V2==null){out.push(`${M[id].name}: chưa đo đủ m, V₁, V₂.`);return}
+    const V=r.V2-r.V1,D=r.m/V,okV=Math.abs(num(iV.value)-V)<1e-9,okD=Math.abs(num(iD.value)-D)<=.015;
+    iV.classList.add(okV?'right':'wrong');iD.classList.add(okD?'right':'wrong');
+    if(r.wetM)out.push(`${M[id].name}: khối lượng đo khi mẫu còn ướt, hãy lau khô và cân lại.`);
+    else if(!okV)out.push(`${M[id].name}: xem lại V = V₂ − V₁.`);
+    else if(!okD)out.push(`${M[id].name}: xem lại phép chia D = m / V.`);
+    if(okV&&okD&&!r.wetM){S.ok[id]=true;$('kg-'+id).textContent=Math.round(D*1000).toLocaleString('vi-VN')}});
+  const all=IDS.every(i=>S.ok[i]);
+  $('feedback').innerHTML=all?'<b style="color:#2b7a4b">Chính xác cả ba chất.</b>':out.join('<br>');
+  const c=$('concl');
+  if(all){const arr=IDS.map(i=>({i,D:S.rec[i].m/(S.rec[i].V2-S.rec[i].V1)})).sort((a,b)=>b.D-a.D);c.hidden=false;
+    c.innerHTML=`<b>Kết luận.</b> Ba khối cùng thể tích ${S.vol} cm³ nhưng khối lượng khác nhau, nên khối lượng riêng khác nhau: <b>${arr.map(a=>`${M[a.i].name} (${fmt(a.D,2)} g/cm³)`).join(' &gt; ')}</b>. Kết quả gần đúng giá trị SGK; sai lệch nhỏ do sai số của cân.`;
+    msg('Hoàn thành thí nghiệm. Xem kết luận trong phiếu ghi.','ok')}else c.hidden=true;
+  mission();
+};
+$('showBtn').onclick=()=>{
+  $('feedback').innerHTML='<b>Gợi ý lời giải</b><br>'+IDS.map(id=>{const r=S.rec[id];if(r.m==null||r.V2==null)return `${M[id].name}: cần đo xong m và V₂ trước.`;
+    const V=r.V2-r.V1;return `${M[id].name}: V = ${r.V2} − ${r.V1} = ${V} cm³; D = ${fmt(r.m,1)} : ${V} = ${fmt(r.m/V,2)} g/cm³ = ${Math.round(r.m/V*1000).toLocaleString('vi-VN')} kg/m³`}).join('<br>');
+};
+$('openSheet').onclick=()=>{$('sheet').hidden=false;$('closeSheet').focus()};
+$('closeSheet').onclick=()=>{$('sheet').hidden=true};
+$('helpBtn').onclick=()=>{$('intro').hidden=false};
+$('startBtn').onclick=()=>{$('intro').hidden=true};
+$('goBench').onclick=()=>{P.x=0;P.z=1.25;P.yaw=0;P.pitch=-.55;msg('Bạn đang đứng trước bàn thí nghiệm. Bấm vào một khối trên khay để cầm lên.')};
+
+function reset(){
+  if(busy)return;fresh();buildTable();IDS.forEach(id=>placeCube(id,'tray'));drawLCD('0.0');setWater(V1);showReading(V1);refreshHeld();
+  $('feedback').innerHTML='';$('concl').hidden=true;mission();
+}
+$('resetBtn').onclick=()=>{reset();msg('Đã làm lại từ đầu. Các khối đã về khay.')};
+$('volSel').onchange=()=>{reset();msg(`Đã đổi sang ba khối cùng thể tích <b>${S.vol} cm³</b>. Làm lại từ đầu nhé.`)};
+
+/* ---------- vòng lặp ---------- */
+function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
+addEventListener('resize',resize);resize();
+let last=performance.now();
+function loop(t){
+  const dt=Math.min(.05,(t-last)/1000);last=t;
+  const sp=2.0*dt;let f=0,s=0,turn=0;
+  if(keys.KeyW||keys.ArrowUp)f+=1;if(keys.KeyS||keys.ArrowDown)f-=1;if(keys.KeyD)s+=1;if(keys.KeyA)s-=1;
+  if(keys.ArrowLeft)turn+=1;if(keys.ArrowRight)turn-=1;
+  f-=joy.y;s+=joy.x;
+  P.yaw+=turn*1.8*dt;
+  if(f||s){const L=Math.max(1,Math.hypot(f,s));f/=L;s/=L;const sy=Math.sin(P.yaw),cy=Math.cos(P.yaw);moveBy((-sy*f+cy*s)*sp,(-cy*f-sy*s)*sp)}
+  camera.position.set(P.x,EYE,P.z);camera.rotation.set(P.pitch,P.yaw,0);
+  for(let i=tweens.length-1;i>=0;i--){const w=tweens[i],k=Math.min(1,(t-w.t0)/w.dur);w.fn(k);if(k>=1){tweens.splice(i,1);w.r()}}
+  renderer.render(scene,camera);requestAnimationFrame(loop);
+}
+reset();requestAnimationFrame(loop);
+})();
+</script>
+
+</html>

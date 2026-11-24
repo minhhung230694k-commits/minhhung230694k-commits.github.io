@@ -1,0 +1,446 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Phòng thí nghiệm khối lượng riêng</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Lexend:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: bàn thí nghiệm (khay mẫu + cân + ống đong) bên trái, sổ ghi số liệu bên phải; dưới là so sánh và câu hỏi */
+:root{
+  --bg:#edf1f3; --panel:#ffffff; --panel2:#f5f8f9; --ink:#16212a; --muted:#596a76; --line:#d2dbe1;
+  --accent:#1d6a86; --accent-soft:#dcebf1; --good:#2b7a4b; --good-soft:#e1f1e7; --warn:#a96300; --warn-soft:#fbeed8; --bad:#b0281f; --bad-soft:#f8e2e0;
+  --inst:#2b3640; --inst-hi:#3d4b57; --lcd:#c8d5cd; --lcd-ink:#1a2520; --glass:#7c8f9c; --water:rgba(70,150,215,.38); --water-line:#2f7fbf;
+  --f-head:"Lexend","Be Vietnam Pro",system-ui,sans-serif; --f-body:"Be Vietnam Pro",system-ui,"Segoe UI",sans-serif; --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f161b; --panel:#172129; --panel2:#1c2832; --ink:#e3ebef; --muted:#93a4b0; --line:#2b3b47;
+  --accent:#62b6d4; --accent-soft:#1b3440; --good:#6cc690; --good-soft:#18342a; --warn:#efb455; --warn-soft:#3a2c14; --bad:#f2857c; --bad-soft:#3d1d1b;
+  --inst:#3a4854; --inst-hi:#4b5c6a; --glass:#8fa3b0; --water:rgba(90,170,235,.32); --water-line:#6db7ea; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f161b; --panel:#172129; --panel2:#1c2832; --ink:#e3ebef; --muted:#93a4b0; --line:#2b3b47;
+  --accent:#62b6d4; --accent-soft:#1b3440; --good:#6cc690; --good-soft:#18342a; --warn:#efb455; --warn-soft:#3a2c14; --bad:#f2857c; --bad-soft:#3d1d1b;
+  --inst:#3a4854; --inst-hi:#4b5c6a; --glass:#8fa3b0; --water:rgba(90,170,235,.32); --water-line:#6db7ea; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:20px}
+h1,h2,h3{font-family:var(--f-head);text-wrap:balance;margin:0;line-height:1.25}
+h1{font-size:clamp(1.5rem,3.2vw,2.1rem)}
+h2{font-size:1.15rem}
+h3{font-size:.98rem}
+.eyebrow{font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:600}
+header{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:end;justify-content:space-between}
+header .lead{color:var(--muted);max-width:62ch;margin:.35rem 0 0}
+.formula{font-family:var(--f-mono);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:.95rem;white-space:nowrap}
+.formula b{color:var(--accent)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+.grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px}
+label.sel{display:flex;gap:8px;align-items:center;font-size:.9rem;color:var(--muted)}
+select,input[type=text]{font:inherit;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+button{font:inherit;cursor:pointer;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);padding:7px 12px;font-weight:500}
+button:hover{border-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--panel);font-weight:600}
+button:disabled{opacity:.45;cursor:not-allowed}
+/* khay */
+.tray{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;background:var(--panel2);border:1px dashed var(--line);border-radius:12px;padding:10px}
+.sample{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 6px;border-radius:10px;border:2px solid transparent;background:transparent;position:relative;min-height:128px;justify-content:center}
+.sample svg{width:62px;height:62px}
+.sample .nm{font-weight:600;font-family:var(--f-head)}
+.sample .sub{font-size:.78rem;color:var(--muted)}
+.sample[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.sample.away{border:2px dashed var(--line);color:var(--muted);cursor:default;font-size:.85rem}
+.wet{position:absolute;top:6px;right:6px;font-size:.7rem;background:var(--accent-soft);color:var(--accent);border-radius:99px;padding:1px 7px;font-weight:600}
+.dry{font-size:.75rem;padding:2px 8px;margin-top:4px}
+/* dụng cụ */
+.instruments{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}
+@media (max-width:520px){.instruments{grid-template-columns:minmax(0,1fr)}}
+.inst{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px;background:var(--panel)}
+.inst h3{display:flex;justify-content:space-between;gap:8px}
+.inst h3 small{font-family:var(--f-body);font-weight:400;color:var(--muted);font-size:.78rem}
+.inst .stage{display:flex;justify-content:center;align-items:end;min-height:230px}
+.inst .actions{display:flex;flex-wrap:wrap;gap:8px}
+.msg{margin-top:14px;padding:10px 12px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);font-size:.92rem;min-height:44px}
+.msg.warn{background:var(--warn-soft);border-color:var(--warn);color:var(--ink)}
+.msg.ok{background:var(--good-soft);border-color:var(--good)}
+/* bước */
+ol.steps{list-style:none;margin:0 0 16px;padding:0;display:grid;gap:8px}
+ol.steps li{display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:start;font-size:.92rem}
+ol.steps .n{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:.8rem;border:2px solid var(--line);color:var(--muted);font-family:var(--f-head)}
+ol.steps li.done .n{background:var(--good);border-color:var(--good);color:var(--panel)}
+ol.steps li.done span{color:var(--muted)}
+/* bảng */
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:.88rem;font-variant-numeric:tabular-nums;min-width:560px}
+th,td{padding:8px 8px;border-bottom:1px solid var(--line);text-align:center;vertical-align:middle}
+th{background:var(--panel2);font-weight:600;font-size:.8rem;color:var(--muted)}
+tr:last-child td{border-bottom:none}
+td.metal{text-align:left;font-weight:600;white-space:nowrap}
+td.metal i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+td .chip{display:inline-block;font-size:.68rem;background:var(--warn-soft);color:var(--warn);border-radius:99px;padding:0 6px;margin-left:4px;font-weight:600}
+td input{width:70px;text-align:center}
+td input.right{border-color:var(--good);background:var(--good-soft)}
+td input.wrong{border-color:var(--bad);background:var(--bad-soft)}
+td.res{font-family:var(--f-mono);font-size:.82rem;white-space:nowrap}
+.flash{animation:fl 1.1s ease}
+@keyframes fl{0%{background:var(--accent-soft)}100%{background:transparent}}
+.row-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
+.hint{font-size:.82rem;color:var(--muted)}
+.feedback{font-size:.88rem;margin-top:8px}
+/* so sánh */
+.compare{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:20px}
+@media (max-width:900px){.compare{grid-template-columns:minmax(0,1fr)}}
+.chart{display:grid;gap:14px;margin-top:12px}
+.crow{display:grid;grid-template-columns:64px minmax(0,1fr) 92px;gap:10px;align-items:center;font-size:.88rem}
+.crow b{font-family:var(--f-head)}
+.track{position:relative;height:26px;background:var(--panel2);border:1px solid var(--line);border-radius:6px}
+.fill{position:absolute;left:0;top:0;bottom:0;border-radius:5px 0 0 5px;transition:width .7s ease}
+.ref{position:absolute;top:-5px;bottom:-5px;width:0;border-left:2px dashed var(--ink)}
+.crow .val{font-family:var(--f-mono);font-size:.8rem;text-align:right}
+.axis{display:grid;grid-template-columns:64px minmax(0,1fr) 92px;gap:10px;font-size:.72rem;color:var(--muted)}
+.axis div:nth-child(2){display:flex;justify-content:space-between}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.8rem;color:var(--muted);margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend .sw{width:14px;height:10px;border-radius:2px;background:var(--glass)}
+.legend .dash{width:0;height:14px;border-left:2px dashed var(--ink)}
+.refbox{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:.88rem}
+.refbox table{min-width:0;font-size:.85rem}
+.concl{margin-top:14px;padding:12px;border-radius:10px;background:var(--good-soft);border:1px solid var(--good);font-size:.92rem}
+.quiz{display:grid;gap:14px}
+.q{border:1px solid var(--line);border-radius:10px;padding:12px}
+.q p{margin:0 0 8px;font-weight:500}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opts button.right{border-color:var(--good);background:var(--good-soft)}
+.opts button.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.q .fb{font-size:.85rem;margin-top:8px;color:var(--muted)}
+svg text{font-family:var(--f-body)}
+@media (prefers-reduced-motion:reduce){.fill{transition:none}.flash{animation:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">KHTN 8 · Bài 13 · Khối lượng riêng</div>
+      <h1>Phòng thí nghiệm khối lượng riêng</h1>
+      <p class="lead">Ba khối sắt, nhôm, đồng có <b>cùng thể tích</b>. Cân khối lượng, đo thể tích bằng ống đong, rồi tự tính khối lượng riêng để biết chất nào “đặc” nhất.</p>
+    </div>
+    <div class="formula">D = <b>m</b> / <b>V</b> &nbsp;·&nbsp; 1 g/cm³ = 1000 kg/m³</div>
+  </header>
+
+  <div class="grid">
+    <section class="panel" aria-labelledby="bench-h">
+      <div class="bar">
+        <h2 id="bench-h">Bàn thí nghiệm</h2>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <label class="sel" for="volSel">Thể tích mỗi khối
+            <select id="volSel"><option value="10">10 cm³</option><option value="20">20 cm³</option></select>
+          </label>
+          <button id="resetBtn" type="button">Làm lại</button>
+        </div>
+      </div>
+
+      <div class="tray" id="tray" aria-label="Khay mẫu"></div>
+
+      <div class="instruments">
+        <div class="inst">
+          <h3>Cân điện tử <small>ĐCNN 0,1 g</small></h3>
+          <div class="stage">
+            <svg id="scaleSvg" viewBox="0 0 220 180" width="100%" style="max-width:250px" role="img" aria-label="Cân điện tử">
+              <rect x="70" y="72" width="80" height="10" rx="2" fill="var(--inst-hi)"/>
+              <ellipse cx="110" cy="70" rx="72" ry="10" fill="var(--glass)"/>
+              <ellipse cx="110" cy="67" rx="72" ry="10" fill="var(--panel2)" stroke="var(--glass)" stroke-width="1.5"/>
+              <g id="panCube"></g>
+              <path d="M24 84 H196 L206 160 Q206 168 198 168 H22 Q14 168 14 160 Z" fill="var(--inst)"/>
+              <rect x="54" y="98" width="112" height="36" rx="5" fill="var(--lcd)"/>
+              <text id="lcd" x="158" y="124" text-anchor="end" font-size="22" font-weight="700" fill="var(--lcd-ink)" style="font-family:var(--f-mono)">0.0</text>
+              <text x="62" y="110" font-size="8" fill="var(--lcd-ink)" opacity=".6">g</text>
+              <circle cx="72" cy="152" r="6" fill="var(--inst-hi)"/><text x="82" y="155" font-size="8" fill="var(--lcd)">ON</text>
+              <circle cx="140" cy="152" r="6" fill="var(--inst-hi)"/><text x="150" y="155" font-size="8" fill="var(--lcd)">TARE</text>
+            </svg>
+          </div>
+          <div class="actions">
+            <button class="primary" type="button" id="toScale">Đặt mẫu lên cân</button>
+            <button type="button" id="offScale" disabled>Lấy xuống</button>
+          </div>
+        </div>
+
+        <div class="inst">
+          <h3>Ống đong 100 ml <small>ĐCNN 1 ml</small></h3>
+          <div class="stage">
+            <svg id="cylSvg" viewBox="0 0 150 300" width="100%" style="max-width:170px" role="img" aria-label="Ống đong có nước">
+              <g id="ticks"></g>
+              <rect id="water" x="44" width="32" fill="var(--water)"/>
+              <line id="surface" x1="44" x2="76" stroke="var(--water-line)" stroke-width="2"/>
+              <g id="cylCube"></g>
+              <path d="M42 34 L38 28 M42 34 V282 H78 V34" fill="none" stroke="var(--glass)" stroke-width="2.2"/>
+              <rect x="28" y="282" width="64" height="9" rx="3" fill="var(--glass)"/>
+              <g id="reading" opacity="0">
+                <line id="readLine" x1="78" x2="96" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="3 2"/>
+                <text id="readText" x="98" font-size="12" font-weight="700" fill="var(--accent)"></text>
+              </g>
+            </svg>
+          </div>
+          <div class="actions">
+            <button class="primary" type="button" id="toCyl">Thả mẫu vào ống đong</button>
+            <button type="button" id="offCyl" disabled>Lấy ra</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="msg" id="msg" role="status" aria-live="polite">Bấm chọn một khối ở khay, sau đó đặt lên cân hoặc thả vào ống đong.</div>
+    </section>
+
+    <section class="panel" aria-labelledby="log-h">
+      <h2 id="log-h" style="margin-bottom:12px">Phiếu ghi kết quả</h2>
+      <ol class="steps" id="steps">
+        <li data-s="1"><b class="n">1</b><span>Cân từng khối, ghi khối lượng <b>m</b>. Nên cân trước khi nhúng vào nước.</span></li>
+        <li data-s="2"><b class="n">2</b><span>Đọc mực nước ban đầu <b>V₁</b>, thả khối vào ống đong, đọc <b>V₂</b> (mắt ngang mực nước).</span></li>
+        <li data-s="3"><b class="n">3</b><span>Tính <b>V = V₂ − V₁</b> và <b>D = m / V</b> (làm tròn 2 chữ số thập phân).</span></li>
+        <li data-s="4"><b class="n">4</b><span>So sánh với bảng khối lượng riêng và rút ra kết luận.</span></li>
+      </ol>
+      <div class="tbl">
+        <table>
+          <thead><tr><th style="text-align:left">Chất</th><th>m (g)</th><th>V₁ (ml)</th><th>V₂ (ml)</th><th>V (cm³)</th><th>D (g/cm³)</th><th>D (kg/m³)</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div class="row-actions">
+        <button class="primary" type="button" id="checkBtn">Kiểm tra kết quả</button>
+        <button type="button" id="showBtn">Xem đáp án</button>
+        <span class="hint">Có thể gõ dấu phẩy: 7,81</span>
+      </div>
+      <div class="feedback" id="feedback"></div>
+    </section>
+  </div>
+
+  <section class="panel compare" aria-labelledby="cmp-h">
+    <div>
+      <h2 id="cmp-h">So sánh khối lượng riêng</h2>
+      <div class="chart" id="chart"></div>
+      <div class="axis"><div></div><div><span>0</span><span>2 500</span><span>5 000</span><span>7 500</span><span>10 000 kg/m³</span></div><div></div></div>
+      <div class="legend"><span><i class="sw"></i>Kết quả em tính</span><span><i class="dash"></i>Giá trị trong SGK</span></div>
+      <div class="concl" id="concl" hidden></div>
+    </div>
+    <div class="refbox">
+      <h3 style="margin-bottom:8px">Bảng khối lượng riêng (SGK)</h3>
+      <table>
+        <thead><tr><th style="text-align:left">Chất</th><th>kg/m³</th><th>g/cm³</th></tr></thead>
+        <tbody>
+          <tr><td class="metal">Nhôm</td><td>2 700</td><td>2,7</td></tr>
+          <tr><td class="metal">Sắt</td><td>7 800</td><td>7,8</td></tr>
+          <tr><td class="metal">Đồng</td><td>8 900</td><td>8,9</td></tr>
+          <tr><td class="metal">Nước</td><td>1 000</td><td>1,0</td></tr>
+        </tbody>
+      </table>
+      <p class="hint" style="margin:10px 0 0">Cùng thể tích, chất nào có khối lượng riêng lớn hơn thì vật làm bằng chất đó nặng hơn.</p>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="quiz-h">
+    <h2 id="quiz-h" style="margin-bottom:12px">Câu hỏi vận dụng</h2>
+    <div class="quiz" id="quiz"></div>
+  </section>
+</div>
+
+<script>
+(function(){
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const M = {
+  fe:{name:'Sắt', rho:7.8, c:['#a7adb5','#7d848d','#5a6068']},
+  al:{name:'Nhôm',rho:2.7, c:['#f1f4f7','#cdd3da','#a8b0ba']},
+  cu:{name:'Đồng',rho:8.9, c:['#f0b07c','#cc7d46','#9a582a']}
+};
+const IDS=['fe','al','cu'];
+const V1=50;
+const $=id=>document.getElementById(id);
+const fmt=(x,d)=>Number(x).toFixed(d).replace('.',',');
+const num=s=>{s=String(s||'').trim().replace(',','.');if(s==='')return NaN;return Number(s)};
+let S;
+
+function fresh(){
+  const vol=+$('volSel').value;
+  const noise={};IDS.forEach(id=>noise[id]=(Math.floor(Math.random()*5)-2)/10);
+  S={vol,sel:null,scale:null,cyl:null,wet:{},noise,rec:{fe:{},al:{},cu:{}},ok:{},shown:false,water:V1};
+}
+const massOf=id=>Math.round((M[id].rho*S.vol+S.noise[id])*10)/10;
+
+function cube(id,s,x,y){
+  const c=M[id].c,h=s/2,q=s/4;
+  return `<g transform="translate(${x},${y})"><polygon points="${h},0 ${s},${q} ${h},${h} 0,${q}" fill="${c[0]}"/><polygon points="0,${q} ${h},${h} ${h},${s} 0,${3*q}" fill="${c[1]}"/><polygon points="${h},${h} ${s},${q} ${s},${3*q} ${h},${s}" fill="${c[2]}"/></g>`;
+}
+function msg(t,kind){const m=$('msg');m.innerHTML=t;m.className='msg'+(kind?' '+kind:'')}
+
+/* khay */
+function renderTray(){
+  $('tray').innerHTML=IDS.map(id=>{
+    const where=S.scale===id?'trên cân':S.cyl===id?'trong ống đong':null;
+    if(where) return `<div class="sample away" id="slot-${id}"><b>${M[id].name}</b><span>đang ở ${where}</span></div>`;
+    return `<button type="button" class="sample" id="slot-${id}" data-id="${id}" aria-pressed="${S.sel===id}">
+      ${S.wet[id]?'<span class="wet">ướt</span>':''}
+      <svg viewBox="0 0 100 100" aria-hidden="true">${cube(id,100,0,0)}</svg>
+      <span class="nm">${M[id].name}</span><span class="sub">V = ${S.vol} cm³</span>
+      ${S.wet[id]?`<span class="dry" data-dry="${id}" role="button" tabindex="0">Lau khô</span>`:''}</button>`;
+  }).join('');
+}
+$('tray').addEventListener('click',e=>{
+  const d=e.target.closest('[data-dry]');
+  if(d){e.stopPropagation();S.wet[d.dataset.dry]=false;renderTray();msg(`Đã lau khô khối ${M[d.dataset.dry].name.toLowerCase()}.`);return}
+  const b=e.target.closest('button.sample');if(!b)return;
+  S.sel=b.dataset.id;renderTray();
+  msg(`Đã chọn khối <b>${M[S.sel].name.toLowerCase()}</b>. Đặt lên cân hoặc thả vào ống đong.`);
+});
+
+/* hoạt ảnh */
+function anim(dur,fn){return new Promise(r=>{if(RM||dur<=0){fn(1);r();return}const t0=performance.now();
+  (function f(t){const k=Math.min(1,(t-t0)/dur);fn(k);k<1?requestAnimationFrame(f):r()})(t0)})}
+const ease=k=>1-Math.pow(1-k,3);
+let busy=false;
+function lock(b){busy=b;['toScale','toCyl','offScale','offCyl','volSel','resetBtn'].forEach(i=>$(i).disabled=b);if(!b)syncBtns()}
+function syncBtns(){$('offScale').disabled=!S.scale;$('offCyl').disabled=!S.cyl}
+
+/* cân */
+function drawPan(){$('panCube').innerHTML=S.scale?cube(S.scale,S.vol===10?44:54,110-(S.vol===10?22:27),66-(S.vol===10?44:54)+6):''}
+async function weigh(id){
+  const wet=!!S.wet[id];const target=Math.round((massOf(id)+(wet?0.6:0))*10)/10;
+  lock(true);
+  await anim(900,k=>{const j=k<1?(Math.random()-.5)*target*0.08*(1-k):0;$('lcd').textContent=(target*ease(k)+j).toFixed(1)});
+  $('lcd').textContent=target.toFixed(1);
+  S.rec[id].m=target;S.rec[id].wetM=wet;delete S.ok[id];
+  lock(false);updateTable(id,'m');
+  if(wet) msg(`Cân hiện <b>${fmt(target,1)} g</b>. Khối ${M[id].name.toLowerCase()} còn dính nước nên số đo bị lớn hơn thực tế. Hãy lấy xuống, bấm “Lau khô” rồi cân lại.`,'warn');
+  else msg(`Khối lượng khối ${M[id].name.toLowerCase()}: <b>m = ${fmt(target,1)} g</b>. Đã ghi vào phiếu.`,'ok');
+}
+$('toScale').onclick=()=>{
+  if(busy)return;const id=S.sel;
+  if(!id){msg('Hãy bấm chọn một khối ở khay trước.','warn');return}
+  if(S.scale){msg(`Trên cân đang có khối ${M[S.scale].name.toLowerCase()}. Lấy xuống trước đã.`,'warn');return}
+  S.scale=id;S.sel=null;renderTray();drawPan();syncBtns();weigh(id);
+};
+$('offScale').onclick=()=>{if(busy||!S.scale)return;S.scale=null;drawPan();$('lcd').textContent='0.0';renderTray();syncBtns();msg('Đã lấy mẫu xuống, cân về 0.0 g.')};
+
+/* ống đong */
+const yOf=v=>280-v*2.3;
+(function ticks(){let h='';for(let v=0;v<=100;v+=2){const y=yOf(v),big=v%10===0,mid=v%10===5||v%10===0;
+  h+=`<line x1="42" x2="${big?30:mid?34:37}" y1="${y}" y2="${y}" stroke="var(--glass)" stroke-width="${big?1.4:.8}"/>`;
+  if(big&&v>0)h+=`<text x="27" y="${y+3.5}" font-size="9" text-anchor="end" fill="var(--muted)">${v}</text>`}
+  h+=`<text x="27" y="22" font-size="9" text-anchor="end" fill="var(--muted)">ml</text>`;$('ticks').innerHTML=h})();
+function setWater(v){const y=yOf(v);$('water').setAttribute('y',y);$('water').setAttribute('height',280-y);$('surface').setAttribute('y1',y);$('surface').setAttribute('y2',y);S.water=v}
+function showReading(v){const y=yOf(v);$('readLine').setAttribute('y1',y);$('readLine').setAttribute('y2',y);$('readText').setAttribute('y',y+4);$('readText').textContent=v+' ml';$('reading').setAttribute('opacity','1')}
+function blockSide(id,s,y){const c=M[id].c;return `<g><rect x="${60-s/2}" y="${y}" width="${s}" height="${s}" rx="1.5" fill="${c[1]}"/><rect x="${60-s/2}" y="${y}" width="${s}" height="${s*0.22}" fill="${c[0]}" opacity=".9"/></g>`}
+$('toCyl').onclick=async()=>{
+  if(busy)return;const id=S.sel;
+  if(!id){msg('Hãy bấm chọn một khối ở khay trước.','warn');return}
+  if(S.cyl){msg(`Trong ống đong đang có khối ${M[S.cyl].name.toLowerCase()}. Lấy ra trước đã.`,'warn');return}
+  S.cyl=id;S.sel=null;renderTray();lock(true);
+  showReading(V1);msg(`Mực nước ban đầu: <b>V₁ = ${V1} ml</b>. Đang thả khối ${M[id].name.toLowerCase()}…`);
+  const s=S.vol===10?20:26,bottom=280-s,surf=yOf(V1);
+  $('reading').setAttribute('opacity','0');
+  await anim(500,k=>{$('cylCube').innerHTML=blockSide(id,s,10+(surf-s*0.5-10)*k*k)});
+  await anim(800,k=>{const e=ease(k);$('cylCube').innerHTML=blockSide(id,s,surf-s*0.5+(bottom-surf+s*0.5)*e);setWater(V1+S.vol*Math.min(1,e*1.15))});
+  setWater(V1+S.vol);$('cylCube').innerHTML=blockSide(id,s,bottom);showReading(V1+S.vol);
+  S.wet[id]=true;S.rec[id].V1=V1;S.rec[id].V2=V1+S.vol;delete S.ok[id];
+  lock(false);updateTable(id,'v');
+  msg(`Mắt đặt ngang mực nước: <b>V₂ = ${V1+S.vol} ml</b> (lúc đầu V₁ = ${V1} ml). Đã ghi vào phiếu.`,'ok');
+};
+$('offCyl').onclick=async()=>{
+  if(busy||!S.cyl)return;const id=S.cyl;lock(true);$('reading').setAttribute('opacity','0');
+  const from=S.water;await anim(400,k=>setWater(from+(V1-from)*k));
+  $('cylCube').innerHTML='';S.cyl=null;lock(false);renderTray();
+  msg(`Đã lấy khối ${M[id].name.toLowerCase()} ra. Khối còn ướt, nếu muốn cân lại hãy lau khô trước.`);
+};
+
+/* bảng */
+function buildTable(){
+  $('tbody').innerHTML=IDS.map(id=>`<tr id="row-${id}">
+    <td class="metal"><i style="background:${M[id].c[1]}"></i>${M[id].name}</td>
+    <td id="m-${id}">—</td><td id="v1-${id}">—</td><td id="v2-${id}">—</td>
+    <td><input type="text" inputmode="decimal" id="inV-${id}" aria-label="Thể tích ${M[id].name}" placeholder="?"></td>
+    <td><input type="text" inputmode="decimal" id="inD-${id}" aria-label="Khối lượng riêng ${M[id].name}" placeholder="?"></td>
+    <td class="res" id="kg-${id}">—</td></tr>`).join('');
+}
+function updateTable(id,what){
+  const r=S.rec[id];
+  if(what==='m'||!what){const c=$('m-'+id);c.innerHTML=r.m!=null?fmt(r.m,1)+(r.wetM?'<span class="chip">ướt</span>':''):'—';if(what)flash(c)}
+  if(what==='v'||!what){$('v1-'+id).textContent=r.V1??'—';$('v2-'+id).textContent=r.V2??'—';if(what){flash($('v1-'+id));flash($('v2-'+id))}}
+  if(!S.ok[id]){$('kg-'+id).textContent='—';['inV-','inD-'].forEach(p=>$(p+id).classList.remove('right','wrong'))}
+  steps();chart();
+}
+function flash(el){el.classList.remove('flash');void el.offsetWidth;el.classList.add('flash')}
+function steps(){
+  const all=f=>IDS.every(f);
+  const done={1:all(i=>S.rec[i].m!=null&&!S.rec[i].wetM),2:all(i=>S.rec[i].V2!=null),3:all(i=>S.ok[i]),4:false};
+  done[4]=done[3]&&S.quizDone;
+  document.querySelectorAll('#steps li').forEach(li=>li.classList.toggle('done',!!done[li.dataset.s]));
+}
+$('checkBtn').onclick=()=>{
+  const out=[];
+  IDS.forEach(id=>{
+    const r=S.rec[id],iV=$('inV-'+id),iD=$('inD-'+id);iV.classList.remove('right','wrong');iD.classList.remove('right','wrong');S.ok[id]=false;
+    if(r.m==null||r.V2==null){out.push(`${M[id].name}: chưa đo đủ m, V₁, V₂.`);$('kg-'+id).textContent='—';return}
+    const V=r.V2-r.V1,uV=num(iV.value),uD=num(iD.value),D=r.m/V;
+    const okV=Math.abs(uV-V)<1e-9,okD=Math.abs(uD-D)<=0.015;
+    iV.classList.add(okV?'right':'wrong');iD.classList.add(okD?'right':'wrong');
+    if(r.wetM){out.push(`${M[id].name}: khối lượng đo khi mẫu còn ướt nên chưa chính xác, hãy lau khô và cân lại.`)}
+    else if(!okV)out.push(`${M[id].name}: xem lại V = V₂ − V₁.`);
+    else if(!okD)out.push(`${M[id].name}: xem lại phép chia D = m / V.`);
+    if(okV&&okD&&!r.wetM){S.ok[id]=true;$('kg-'+id).textContent=Math.round(D*1000).toLocaleString('vi-VN')}else $('kg-'+id).textContent='—';
+  });
+  const fb=$('feedback');
+  if(IDS.every(i=>S.ok[i])){fb.innerHTML='<b style="color:var(--good)">Chính xác cả ba chất.</b> Xem phần so sánh bên dưới.'}
+  else fb.innerHTML=out.length?out.join('<br>'):'';
+  steps();chart();
+};
+$('showBtn').onclick=()=>{
+  const lines=IDS.map(id=>{const r=S.rec[id];if(r.m==null||r.V2==null)return `${M[id].name}: cần đo xong m và V₂ trước.`;
+    const V=r.V2-r.V1;return `${M[id].name}: V = ${r.V2} − ${r.V1} = ${V} cm³; D = ${fmt(r.m,1)} : ${V} = ${fmt(r.m/V,2)} g/cm³ = ${Math.round(r.m/V*1000).toLocaleString('vi-VN')} kg/m³`});
+  $('feedback').innerHTML='<b>Gợi ý lời giải</b><br>'+lines.join('<br>');
+};
+
+/* so sánh */
+function chart(){
+  $('chart').innerHTML=IDS.map(id=>{
+    const r=S.rec[id],ok=S.ok[id],D=ok?r.m/(r.V2-r.V1)*1000:0,ref=M[id].rho*1000;
+    return `<div class="crow"><b>${M[id].name}</b><div class="track" role="img" aria-label="${M[id].name}: ${ok?Math.round(D)+' kg/m³':'chưa tính'}, SGK ${ref} kg/m³">
+      <div class="fill" style="width:${D/100}%;background:${M[id].c[1]}"></div><div class="ref" style="left:${ref/100}%"></div></div>
+      <span class="val">${ok?Math.round(D).toLocaleString('vi-VN'):'chưa tính'}</span></div>`}).join('');
+  const c=$('concl');
+  if(IDS.every(i=>S.ok[i])){
+    const arr=IDS.map(i=>({i,D:S.rec[i].m/(S.rec[i].V2-S.rec[i].V1)})).sort((a,b)=>b.D-a.D);
+    c.hidden=false;
+    c.innerHTML=`<b>Kết luận.</b> Ba khối cùng thể tích ${S.vol} cm³ nhưng khối lượng khác nhau: `+arr.map(a=>`${M[a.i].name.toLowerCase()} ${fmt(S.rec[a.i].m,1)} g`).join(', ')+
+      `. Vậy khối lượng riêng: <b>${arr.map(a=>`${M[a.i].name} (${fmt(a.D,2)} g/cm³)`).join(' &gt; ')}</b>. Kết quả đo gần đúng giá trị trong SGK; sai lệch nhỏ do sai số của cân và cách đọc ống đong.`;
+  } else c.hidden=true;
+}
+
+/* câu hỏi */
+const Q=[
+  {q:'Ba khối sắt, nhôm, đồng có cùng thể tích. Khối nào nặng nhất?',o:['Sắt','Nhôm','Đồng','Nặng bằng nhau'],a:2,e:'Đồng có khối lượng riêng lớn nhất (8 900 kg/m³) nên cùng thể tích thì khối đồng nặng nhất.'},
+  {q:'Một vật đặc có khối lượng 54 g, thể tích 20 cm³. Vật làm bằng chất gì?',o:['Nhôm','Sắt','Đồng','Nước'],a:0,e:'D = 54 : 20 = 2,7 g/cm³ = 2 700 kg/m³, đúng với nhôm.'},
+  {q:'Vì sao nên cân vật trước rồi mới đo thể tích bằng ống đong?',o:['Để ống đong không bị vỡ','Vì vật dính nước sẽ làm khối lượng đo được lớn hơn thực tế','Vì cân phải dùng trước','Không có lí do'],a:1,e:'Nước bám trên vật làm số chỉ của cân tăng thêm, khối lượng riêng tính ra sẽ bị sai.'},
+  {q:'Khối sắt 10 cm³ có khối lượng bao nhiêu? (D sắt = 7,8 g/cm³)',o:['0,78 g','7,8 g','78 g','780 g'],a:2,e:'m = D × V = 7,8 × 10 = 78 g.'}
+];
+function buildQuiz(){
+  S.quiz={};S.quizDone=false;
+  $('quiz').innerHTML=Q.map((x,i)=>`<div class="q"><p>Câu ${i+1}. ${x.q}</p><div class="opts">${x.o.map((o,j)=>`<button type="button" data-q="${i}" data-o="${j}">${o}</button>`).join('')}</div><div class="fb" id="fb-${i}"></div></div>`).join('');
+}
+$('quiz').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-q]');if(!b)return;const i=+b.dataset.q,j=+b.dataset.o,x=Q[i];
+  b.parentElement.querySelectorAll('button').forEach(z=>z.classList.remove('right','wrong'));
+  b.classList.add(j===x.a?'right':'wrong');
+  $('fb-'+i).innerHTML=(j===x.a?'<b style="color:var(--good)">Đúng.</b> ':'<b style="color:var(--bad)">Chưa đúng.</b> ')+(j===x.a?x.e:'Thử lại nhé.');
+  if(j===x.a)S.quiz[i]=true;S.quizDone=Q.every((_,k)=>S.quiz[k]);steps();
+});
+
+/* khởi động */
+function reset(){
+  fresh();buildTable();renderTray();drawPan();$('lcd').textContent='0.0';$('cylCube').innerHTML='';setWater(V1);showReading(V1);
+  $('feedback').innerHTML='';buildQuiz();steps();chart();syncBtns();
+  msg(`Ống đong đang chứa <b>${V1} ml</b> nước. Bấm chọn một khối ở khay, sau đó đặt lên cân hoặc thả vào ống đong.`);
+}
+$('resetBtn').onclick=reset;
+$('volSel').onchange=()=>{reset();msg(`Đã đổi sang ba khối cùng thể tích <b>${S.vol} cm³</b>. Làm lại từ đầu nhé.`)};
+reset();
+})();
+</script>
+
+</html>
